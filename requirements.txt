@@ -50,3 +50,8 @@ urllib3==1.26.11
 Werkzeug==2.2.1
 yellowbrick==1.4
 zipp==3.8.1
+
+torch
+diffusers
+transformers
+ftfy

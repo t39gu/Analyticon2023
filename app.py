@@ -1,35 +1,29 @@
 import os
-
-import dash
-import dash_core_components as dcc
-import dash_bootstrap_components as dbc
-import dash_html_components as html
-from dash.dependencies import Input, Output, State
-from dash import dash_table
-import plotly.express as px
-from dash.exceptions import PreventUpdate
 import json
-
+import requests
+import plotly.express as px
 import numpy as np
 import pandas as pd
-import requests
 
+import dash
+import dash_bootstrap_components as dbc
+from dash import html, dcc, dash_table
+from dash.dependencies import Input, Output, State
+from dash.exceptions import PreventUpdate
 
-pokemon_df = pd.read_csv('pokedex_(Update_05.20).csv')
+datasets_path = './datasets/pokedex_(Update_05.20).csv'
+logo_url = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/25.png'
+external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
+pokemon_df = pd.read_csv(datasets_path)
 pokemon_options = [{"label": name, "value": name} for name in pokemon_df.name.unique()]
 
-app = dash.Dash(__name__)
-
-external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
-app = dash.Dash(__name__, external_stylesheets=[dbc.themes.SKETCHY,
-    external_stylesheets])
+app = dash.Dash(__name__, external_stylesheets=[dbc.themes.SKETCHY, external_stylesheets])
 
 application = app.server
-app.config['suppress_callback_exceptions']=True
+app.config['suppress_callback_exceptions'] = True
 
-logo_url = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/25.png'
-logo = html.Img(src=logo_url,height='100vh')
+logo = html.Img(src=logo_url, height='100vh')
 
 navbar = dbc.NavbarSimple(
     children=([
@@ -58,80 +52,78 @@ navbar = dbc.NavbarSimple(
     brand_style={"fontSize": 36}
 )
 
-tab_style = {
-    'borderTop': '1px solid #d6d6d6',
-    'padding': '6px',
-    'fontWeight': 'bold'
-}
+#Todo: move style into static/styles.css
+tab_style = {'borderTop': '1px solid #d6d6d6', 'padding': '6px', 'fontWeight': 'bold'}
+image_style = {'width': '300px', 'height': '300px'}
+app_style = {'marginLeft': 40, 'marginRight': 40, 'marginTop': 20, 'marginBottom': 20, 'padding': '10px'}
 
-image_style = {'width': '300px','height':'300px'}
+tab1 = dbc.Tab(label='Pokémon 🥳', tab_id='tab1',
+               style=tab_style, activeTabClassName="fw-bold fst-italic",
+               children=[
+                   html.Br(),
+                   html.P('Select a Pokémon'),
+                   html.Div(
+                       dcc.Dropdown(
+                           id='select-pokemon', options=pokemon_options,
+                           multi=False,
+                           value='Bulbasaur',
+                       ), style={'width': '30%'}
+                   ),
+                   dbc.Row([
+                       dbc.Col(
+                           id='pokemon-img-front'
+                           # html.Img(id='pokemon-img-front',style=image_style)
+                           , width=2),
+                       dbc.Col(
+                           id='pokemon-img-shiny'
+                           # html.Img(id='pokemon-img-shiny',style=image_style)
+                           , width=3),
+                       dbc.Col([
+                           html.Div(id='pokemon-desc')
+                       ]),
+                       dbc.Col([
+                           dcc.Graph(id='attributes-plot')
+                       ], width=3)
 
-tab1 = dbc.Tab(label = 'Pokémon 🥳',tab_id='tab1',
-                style=tab_style, activeTabClassName="fw-bold fst-italic",
-                children=[
-                    html.Br(),
-                    html.P('Select a Pokémon'),
-                    html.Div(
-                        dcc.Dropdown(
-                            id='select-pokemon', options=pokemon_options,
-                            multi=False,
-                            value='Bulbasaur',
-                        ),style={'width':'30%'}
-                    ),
-                    dbc.Row([
-                        dbc.Col(
-                            id='pokemon-img-front'
-                            #html.Img(id='pokemon-img-front',style=image_style)
-                        ,width=2),
-                        dbc.Col(
-                            id='pokemon-img-shiny'
-                            #html.Img(id='pokemon-img-shiny',style=image_style)
-                        ,width=3),
-                        dbc.Col([
-                            html.Div(id='pokemon-desc')
-                        ]),
-                        dbc.Col([
-                            dcc.Graph(id='attributes-plot')
-                        ],width=3)
+                   ]),
+                   dbc.Row([
+                       html.P('Evolution Tree')
+                   ])
+               ])
 
-                    ]),
-                    dbc.Row([
-                        html.P('Evolution Tree')
-                    ])
-                ])
+tab2 = dbc.Tab(label='Create A Pokémon 🎭', tab_id='tab2',
+               style=tab_style, activeTabClassName="fw-bold fst-italic",
+               children=[
+                   dbc.Row([
+                       dbc.Col([
+                           dbc.Row([
+                               html.P('Pokémon #1'),
+                               dcc.Dropdown(
+                                   id='select-pokemon-1', options=pokemon_options,
+                                   multi=False,
+                                   value='Bulbasaur'),
+                               html.P('Pokémon #2'),
+                               dcc.Dropdown(
+                                   id='select-pokemon-2', options=pokemon_options,
+                                   multi=False,
+                                   value='Bulbasaur')
+                           ])
+                       ], width=6),
+                       dbc.Col([
+                           html.P('Your New Pokémon!')
+                       ], width=6)
 
-tab2 = dbc.Tab(label = 'Create A Pokémon 🎭',tab_id='tab2',
-                style=tab_style, activeTabClassName="fw-bold fst-italic",
-                children=[
-                    dbc.Row([
-                        dbc.Col([
-                            dbc.Row([
-                                html.P('Pokémon #1'),
-                                dcc.Dropdown(
-                                    id='select-pokemon-1', options=pokemon_options,
-                                    multi=False,
-                                    value='Bulbasaur'),
-                                html.P('Pokémon #2'),
-                                dcc.Dropdown(
-                                    id='select-pokemon-2', options=pokemon_options,
-                                    multi=False,
-                                    value='Bulbasaur')
-                            ])
-                        ],width=6),
-                        dbc.Col([
-                            html.P('Your New Pokémon!')
-                        ],width=6)
+                   ])
+               ])
 
-                    ])
-                ])
-
-tab3 = dbc.Tab(label = 'Ask Me A Question 🔮',tab_id='tab3',
-                style=tab_style, activeTabClassName="fw-bold fst-italic",
-                children=[
-                    html.P(),
-                    dbc.Input(id='search-input',placeholder="Ask me something about Pokémon", size="lg", className="mb-3"),
-                    dbc.Spinner(html.Div(id='search-result')),
-                ])
+tab3 = dbc.Tab(label='Ask Me A Question 🔮', tab_id='tab3',
+               style=tab_style, activeTabClassName="fw-bold fst-italic",
+               children=[
+                   html.P(),
+                   dbc.Input(id='search-input', placeholder="Ask me something about Pokémon", size="lg",
+                             className="mb-3"),
+                   dbc.Spinner(html.Div(id='search-result')),
+               ])
 
 app.layout = html.Div(
     children=[
@@ -142,25 +134,24 @@ app.layout = html.Div(
             tab2,
             tab3
         ])
-    ], style={'marginLeft': 40, 'marginRight': 40, 'marginTop': 20, 'marginBottom': 20,
-         'padding': '10px'}
+    ], style=app_style
 )
 
 @app.callback(
-    Output('pokemon-img-front','children'),
-    Output('pokemon-img-shiny','children'),
-    Output('attributes-plot','figure'),
-    Output('pokemon-desc','children'),
-    Input('select-pokemon','value')
+    Output('pokemon-img-front', 'children'),
+    Output('pokemon-img-shiny', 'children'),
+    Output('attributes-plot', 'figure'),
+    Output('pokemon-desc', 'children'),
+    Input('select-pokemon', 'value')
 )
 def update_pokemon_info(pokemon_name):
     print(pokemon_name)
-    if pokemon_name==None:
+    if pokemon_name is None:
         PreventUpdate
     else:
-        sub_df = pokemon_df[pokemon_df.name==pokemon_name]
+        sub_df = pokemon_df[pokemon_df.name == pokemon_name]
         pokedex = sub_df.pokedex_number.unique()[0]
-        sub_group = pokemon_df[pokemon_df.pokedex_number==pokedex]
+        sub_group = pokemon_df[pokemon_df.pokedex_number == pokedex]
         # print(sub_group.name.unique())
         # if sub_group.shape[0]>1:
         #     pokemon_fig_name = sub_group.name.unique()[0]
@@ -179,71 +170,73 @@ def update_pokemon_info(pokemon_name):
         # print(pokemon_name,pokemon_fig_name)
         url = f'https://pokeapi.co/api/v2/pokemon/{pokedex}'
         response = requests.get(url)
-        if response.status_code ==200:
-            pokemon_fig_data=response.json()
+        if response.status_code == 200:
+            pokemon_fig_data = response.json()
             image_url_front = pokemon_fig_data['sprites']['other']['official-artwork']['front_default']
             image_url_shiny = pokemon_fig_data['sprites']['other']['official-artwork']['front_shiny']
-            front_content = html.Img(src=image_url_front,style=image_style)
-            shiny_content = html.Img(src=image_url_shiny,style=image_style)
+            front_content = html.Img(src=image_url_front, style=image_style)
+            shiny_content = html.Img(src=image_url_shiny, style=image_style)
         else:
-            front_content = html.P('Pokemon Image Not Found',style={'color': '#957DAD', 'fontSize': 14})
-            shiny_content = html.P('Shiny Image Not Found',style={'color': '#D291BC', 'fontSize': 14})
-        plot_df = sub_df.loc[:,['hp','attack','defense','speed','sp_attack','sp_defense']]
-        plot_df.columns = ['HP','Attack','Defense','Speed','Sp. Attack','Sp. Defense']
+            front_content = html.P('Pokemon Image Not Found', style={'color': '#957DAD', 'fontSize': 14})
+            shiny_content = html.P('Shiny Image Not Found', style={'color': '#D291BC', 'fontSize': 14})
+        plot_df = sub_df.loc[:, ['hp', 'attack', 'defense', 'speed', 'sp_attack', 'sp_defense']]
+        plot_df.columns = ['HP', 'Attack', 'Defense', 'Speed', 'Sp. Attack', 'Sp. Defense']
         plot_df2 = plot_df.transpose().reset_index(drop=False)
-        plot_df2.columns=['type','points']
+        plot_df2.columns = ['type', 'points']
         max_rg = plot_df2.points.max() + 20
         attribute_fig = px.line_polar(
-            plot_df2, 
-            r='points', 
-            theta='type', line_close=True, 
-            range_r=(0,max_rg),
+            plot_df2,
+            r='points',
+            theta='type', line_close=True,
+            range_r=(0, max_rg),
             title=f'{pokemon_name} Attributes',
-            template = 'seaborn',
+            template='seaborn',
             color_discrete_sequence=['dodgerblue'],
         )
-        attribute_fig.update_traces(fill = 'toself')
-        attribute_fig.update_layout(margin={"r":30,"t":0,"l":50,"b":0,'pad':4})
-        attribute_fig.update_layout(font=dict(size=8,color='RebeccaPurple'))
-        num_ref = {1:'One', 2:'Two', 3:'Three', 4:'Four', 5:'Five',6:'Six',7:'Seven',8:'Eight'}
+        attribute_fig.update_traces(fill='toself')
+        attribute_fig.update_layout(margin={"r": 30, "t": 0, "l": 50, "b": 0, 'pad': 4})
+        attribute_fig.update_layout(font=dict(size=8, color='RebeccaPurple'))
+        num_ref = {1: 'One', 2: 'Two', 3: 'Three', 4: 'Four', 5: 'Five', 6: 'Six', 7: 'Seven', 8: 'Eight'}
         gen_num = sub_df.generation.unique()[0]
         gen = num_ref[gen_num]
-        if sub_df.type_number.unique()[0]==1:
+        if sub_df.type_number.unique()[0] == 1:
             type_bar = dbc.Progress([
-                            dbc.Progress(value=100,label=f'{sub_df.type_1.unique()[0]}',color='#9699CB',bar=True)],style={"height": "50px"}),
+                dbc.Progress(value=100, label=f'{sub_df.type_1.unique()[0]}', color='#9699CB', bar=True)],
+                style={"height": "50px"}),
         else:
             type_bar = dbc.Progress([
-                        dbc.Progress(value=100,label=f'{sub_df.type_1.unique()[0]}',color='#9699CB',bar=True),
-                        dbc.Progress(value=100,label=f'{sub_df.type_2.unique()[0]}',color='#D18CAF',bar=True)
-                    ],style={"height": "50px"}),
-        if sub_df.abilities_number.unique()[0]==0:
+                dbc.Progress(value=100, label=f'{sub_df.type_1.unique()[0]}', color='#9699CB', bar=True),
+                dbc.Progress(value=100, label=f'{sub_df.type_2.unique()[0]}', color='#D18CAF', bar=True)
+            ], style={"height": "50px"}),
+        if sub_df.abilities_number.unique()[0] == 0:
             ability_bar = dbc.Progress([
-                            dbc.Progress(value=100,label='No ability',color='#A9D4B7',bar=True)],style={"height": "50px"}),
-        elif sub_df.abilities_number.unique()[0]==1:
+                dbc.Progress(value=100, label='No ability', color='#A9D4B7', bar=True)], style={"height": "50px"}),
+        elif sub_df.abilities_number.unique()[0] == 1:
             ability_bar = dbc.Progress([
-                            dbc.Progress(value=100,label=f'{sub_df.ability_1.unique()[0]}',color='#A9D4B7',bar=True)],style={"height": "50px"}),
-        elif sub_df.abilities_number.unique()[0]==2:
+                dbc.Progress(value=100, label=f'{sub_df.ability_1.unique()[0]}', color='#A9D4B7', bar=True)],
+                style={"height": "50px"}),
+        elif sub_df.abilities_number.unique()[0] == 2:
             ability_bar = dbc.Progress([
-                        dbc.Progress(value=100,label=f'{sub_df.ability_1.unique()[0]}',color='#A9D4B7',bar=True),
-                        dbc.Progress(value=100,label=f'{sub_df.ability_hidden.unique()[0]}',color='#868D8B',bar=True),
-                    ],style={"height": "50px"})
-        else: 
+                dbc.Progress(value=100, label=f'{sub_df.ability_1.unique()[0]}', color='#A9D4B7', bar=True),
+                dbc.Progress(value=100, label=f'{sub_df.ability_hidden.unique()[0]}', color='#868D8B', bar=True),
+            ], style={"height": "50px"})
+        else:
             ability_bar = dbc.Progress([
-                        dbc.Progress(value=100,label=f'{sub_df.ability_1.unique()[0]}',color='#A9D4B7',bar=True),
-                        dbc.Progress(value=100,label=f'{sub_df.ability_2.unique()[0]}',color='#868D8B',bar=True),
-                        dbc.Progress(value=100,label=f'{sub_df.ability_hidden.unique()[0]}',color='#A7C0CF',bar=True)
-                    ],style={"height": "50px"})
-        return front_content,shiny_content,attribute_fig, \
-                [
-                    html.P(f'Generation: {gen}'),
-                    html.P(f'Status: {sub_df.status.unique()[0]}'),
-                    html.P(f'Species: {sub_df.species.unique()[0]}'),
-                    html.Div('Type: '),
-                    html.Div(children=type_bar),
-                    html.P(),
-                    html.Div('Abilities: '),
-                    html.Div(children=ability_bar)
-                ]
+                dbc.Progress(value=100, label=f'{sub_df.ability_1.unique()[0]}', color='#A9D4B7', bar=True),
+                dbc.Progress(value=100, label=f'{sub_df.ability_2.unique()[0]}', color='#868D8B', bar=True),
+                dbc.Progress(value=100, label=f'{sub_df.ability_hidden.unique()[0]}', color='#A7C0CF', bar=True)
+            ], style={"height": "50px"})
+        return front_content, shiny_content, attribute_fig, \
+            [
+                html.P(f'Generation: {gen}'),
+                html.P(f'Status: {sub_df.status.unique()[0]}'),
+                html.P(f'Species: {sub_df.species.unique()[0]}'),
+                html.Div('Type: '),
+                html.Div(children=type_bar),
+                html.P(),
+                html.Div('Abilities: '),
+                html.Div(children=ability_bar)
+            ]
 
 
 if __name__ == '__main__':
