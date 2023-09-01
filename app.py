@@ -10,6 +10,7 @@ import dash_bootstrap_components as dbc
 from dash import html, dcc, dash_table
 from dash.dependencies import Input, Output, State
 from dash.exceptions import PreventUpdate
+import dash_loading_spinners as dls
 
 datasets_path = './datasets/pokedex_(Update_05.20).csv'
 logo_url = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/25.png'
@@ -91,7 +92,7 @@ tab1 = dbc.Tab(label='Pokémon 🥳', tab_id='tab1',
                children=[
                    html.Br(),
                    html.Div([
-                       html.P('Select a Pokémon ',style=dict(width='10%')),
+                       html.P('Select a Pokémon ',style=dict(width='20%',fontSize=24)),
                         html.Div(
                             dcc.Dropdown(
                                 id='select-pokemon', options=pokemon_options,
@@ -103,21 +104,29 @@ tab1 = dbc.Tab(label='Pokémon 🥳', tab_id='tab1',
                    dbc.Row([
                        html.Div(html.Br()),
                        dbc.Col(
+                           dls.Hash(html.Div(
                            id='pokemon-img-front'
+                           ),color='#435278',speed_multiplier=2,size=30,fullscreen=False)
                            ),
                        dbc.Col(
+                           dls.Hash(html.Div(
                            id='pokemon-img-shiny'
+                           ),color='#435278',speed_multiplier=2,size=30,fullscreen=False)
                            ),
                        dbc.Col([
-                           html.Div(id='pokemon-desc')
+                           dls.Hash(
+                           html.Div(id='pokemon-desc'),color='#435278',speed_multiplier=2,size=30,fullscreen=False)
                        ]),
                        dbc.Col([
-                           dcc.Graph(id='attributes-plot')
+                           dls.Hash(
+                           dcc.Graph(id='attributes-plot'),color='#435278',speed_multiplier=2,size=30,fullscreen=False)
                        ])
 
                    ]),
+                   html.Div(html.Br()),
                    dbc.Row([
-                       html.Div(id='evolution-tree')
+                       dls.Hash(
+                       html.Div(id='evolution-tree'),color='#435278',speed_multiplier=2,size=30,fullscreen=False)
                    ])
                ])
 
@@ -197,8 +206,8 @@ def update_pokemon_info(pokemon_name):
                 html.Img(src=image_url_shiny, style=image_style)
             ])
         else:
-            front_content = html.P('Pokemon Image Not Found', style={'color': '#957DAD', 'fontSize': 14})
-            shiny_content = html.P('Shiny Image Not Found', style={'color': '#D291BC', 'fontSize': 14})
+            front_content = html.P('Pokemon Image Not Found', style={'color': '#957DAD', 'fontSize': 24})
+            shiny_content = html.P('Shiny Image Not Found', style={'color': '#D291BC', 'fontSize': 24})
         plot_df = sub_df.loc[:, ['hp', 'attack', 'defense', 'speed', 'sp_attack', 'sp_defense']]
         plot_df.columns = ['HP', 'Attack', 'Defense', 'Speed', 'Sp. Attack', 'Sp. Defense']
         plot_df2 = plot_df.transpose().reset_index(drop=False)
@@ -481,16 +490,16 @@ def update_pokemon_info(pokemon_name):
         print(evolution_chain)
         return front_content, shiny_content, attribute_fig, \
             [
-                html.P(f'Generation: {gen}'),
-                html.P(f'Status: {sub_df.status.unique()[0]}'),
-                html.P(f'Species: {sub_df.species.unique()[0]}'),
-                html.Div('Type: '),
+                html.P(f'Generation: {gen}',style={'fontSize': 24}),
+                html.P(f'Status: {sub_df.status.unique()[0]}',style={'fontSize': 24}),
+                html.P(f'Species: {sub_df.species.unique()[0]}',style={'fontSize': 24}),
+                html.Div('Type: ',style={'fontSize': 24}),
                 html.Div(children=type_bar),
                 html.P(),
-                html.Div('Gender: '),
+                html.Div('Gender: ',style={'fontSize': 24}),
                 html.Div(children=gender_bar),
                 html.P(),
-                html.Div('Abilities: '),
+                html.Div('Abilities: ',style={'fontSize': 24}),
                 html.Div(children=ability_bar)
             ],evol_tree
 
