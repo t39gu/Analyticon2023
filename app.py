@@ -48,6 +48,43 @@ def get_difference_emoji(value):
     else:
         return "➡️"
 
+plot_df = pokemon_df.groupby(['generation','status'])['name'].count().reset_index(drop=False)
+plot_df = plot_df.rename(columns={'name':'count'})
+plot_df['percent'] = pokemon_df.groupby(['generation','status']).size().groupby(level=0).apply(lambda x: 100 * x / float(x.sum())).values
+plot_df['percent'] = plot_df['percent'].round(decimals=2)
+generation_plot1 = px.bar(plot_df, x="generation", y='percent',text='percent',
+             color='status',color_discrete_sequence=px.colors.qualitative.T10,
+             category_orders={"status": ["Normal", "Mythical", "Sub Legendary", "Legendary"]})
+generation_plot1.update_traces(texttemplate='%{text:.2s}%', textposition='outside')
+generation_plot1.update_layout(title_text='Pokémon over Generation',
+                  yaxis=dict(title=''),
+                  xaxis=dict(
+                    title='Generation',
+                    titlefont_size=16,
+                    tickfont_size=14,
+                ),
+                uniformtext_minsize=8,
+                yaxis_ticksuffix = "%",
+                hovermode="x unified"
+    )
+
+generation_plot2 = px.box(pokemon_df, x="generation", y='total_points',points='all',
+             color='status',#notched=True,
+             color_discrete_sequence=px.colors.qualitative.T10,
+             custom_data=[pokemon_df['name'],pokemon_df['status']],
+             )
+generation_plot2.update_layout(title_text='Pokémon Points over Generation',
+                  yaxis=dict(title=''),
+                  xaxis=dict(
+                    title='Generation',
+                    titlefont_size=16,
+                    tickfont_size=14,
+                ),
+                uniformtext_minsize=8,
+    )
+generation_plot2.update_traces(hovertemplate='Status:%{customdata[1]}<br>Generation:%{x}<br>Total Points:%{y}<br>Name:%{customdata[0]}')
+
+
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.SKETCHY, external_stylesheets])
 
 application = app.server
@@ -98,9 +135,11 @@ tab1 = dbc.Tab(label='Pokémon 🥳', tab_id='tab1',
                                 id='select-pokemon', options=pokemon_options,
                                 multi=False,
                                 value='Bulbasaur',
-                            ), style={'width': '25%'}
+                            ), style={'width': '25%','font-size':24}
                         ),
                    ],style=dict(display='flex')),
+                   dbc.Button('General Stats',color='secondary',size='lg',outline=False,
+                              style={'font-size':'30px','width':'100%'}),
                    dbc.Row([
                        html.Div(html.Br()),
                        dbc.Col(
@@ -124,10 +163,29 @@ tab1 = dbc.Tab(label='Pokémon 🥳', tab_id='tab1',
 
                    ]),
                    html.Div(html.Br()),
+                   dbc.Button('Evolution Tree',color='secondary',size='lg',outline=False,
+                              style={'font-size':'30px','width':'100%'}),
+                   html.Div(html.Br()),
                    dbc.Row([
                        dls.Hash(
                        html.Div(id='evolution-tree'),color='#435278',speed_multiplier=2,size=30,fullscreen=False)
+                   ]),
+                   html.Div(html.Br()),
+                   dbc.Button('Comparison Across Generation',color='secondary',size='lg',outline=False,
+                              style={'font-size':'30px','width':'100%'}),
+                   html.Div(html.Br()),
+                   dbc.Row([
+                       dbc.Col([
+                          dls.Hash(
+                           dcc.Graph(id='generation-plot1',figure=generation_plot1),color='#435278',speed_multiplier=2,size=30,fullscreen=False)
+                       ]),
+                       dbc.Col([
+                          dls.Hash(
+                           dcc.Graph(id='generation-plot2',figure=generation_plot2),color='#435278',speed_multiplier=2,size=30,fullscreen=False)
+                           
+                       ])
                    ])
+                
                ])
 
 tab2 = dbc.Tab(label='Create A Pokémon 🎭', tab_id='tab2',
@@ -185,7 +243,6 @@ app.layout = html.Div(
     Input('select-pokemon', 'value')
 )
 def update_pokemon_info(pokemon_name):
-    print(pokemon_name)
     if pokemon_name is None:
         PreventUpdate
     else:
@@ -237,7 +294,6 @@ def update_pokemon_info(pokemon_name):
                 dbc.Progress(value=100, label=f'{sub_df.type_1.unique()[0]}', color='#9699CB', bar=True),
                 dbc.Progress(value=100, label=f'{sub_df.type_2.unique()[0]}', color='#D18CAF', bar=True)
             ], style={"height": "50px"}),
-        print(sub_df.percentage_male.unique()[0])
         gender_bar = dbc.Progress([
             dbc.Progress(value=sub_df.percentage_male.unique()[0],
                          label=f'♂: {sub_df.percentage_male.unique()[0]}',color='#DF917C',bar=True),
@@ -263,8 +319,6 @@ def update_pokemon_info(pokemon_name):
                 dbc.Progress(value=100, label=f'{sub_df.ability_hidden.unique()[0]}', color='#A7C0CF', bar=True)
             ], style={"height": "50px"})
         evolution_chain = get_evolution_chain(pokedex)
-        print(evolution_chain[0])
-        print(pokemon_df[pokemon_df.name.str.lower() == evolution_chain[0]].pokedex_number.unique())
         if len(evolution_chain)<2:
             evol_tree = html.P('No evolution chain found!')
         elif len(evolution_chain)==2:
@@ -486,8 +540,6 @@ def update_pokemon_info(pokemon_name):
                         ])
                     ])
                 ])
-        evol_df = pokemon_df[pokemon_df.name.str.lower().isin(evolution_chain)]
-        print(evolution_chain)
         return front_content, shiny_content, attribute_fig, \
             [
                 html.P(f'Generation: {gen}',style={'fontSize': 24}),
