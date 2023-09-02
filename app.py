@@ -4,6 +4,11 @@ import requests
 import plotly.express as px
 import numpy as np
 import pandas as pd
+import boto3
+import io
+import base64
+from io import BytesIO
+from PIL import Image
 
 import dash
 import dash_bootstrap_components as dbc
@@ -18,6 +23,34 @@ external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
 pokemon_df = pd.read_csv(datasets_path)
 pokemon_options = [{"label": name, "value": name} for name in pokemon_df.name.unique()]
+
+def decode_base64_image(image_string):
+  base64_image = base64.b64decode(image_string)
+  buffer = BytesIO(base64_image)
+  # print(buffer["generated_images"])
+  return Image.open(buffer)
+
+# 0-Ancient style 1-Future style
+def get_new_pokemon(prompt, num, type):
+    region_name = 'us-east-1'
+    if type == 0:
+        inputs = "A primitive pokemon " + prompt
+    else:
+        inputs = "A robotic pokemon " + prompt
+
+    request_body = {
+        "inputs": inputs,
+        "num_images_per_prompt": num
+    }
+
+    runtime = boto3.client('sagemaker-runtime', region_name=region_name)
+    response = runtime.invoke_endpoint(EndpointName='huggingface-pytorch-inference-2023-09-01-16-56-57-989',
+                                       ContentType='application/json',
+                                       Body=json.dumps(request_body))
+
+    output_data = response['Body'].read()
+    # print(output_data)
+    return output_data
 
 def get_evolution_chain(pokemon_id):
     
@@ -165,6 +198,19 @@ tab1 = dbc.Tab(label='Pokémon 🥳', tab_id='tab1',
                    html.Div(html.Br()),
                    dbc.Button('Evolution Tree',color='secondary',size='lg',outline=False,
                               style={'font-size':'30px','width':'100%'}),
+                    html.Div(html.Br()),
+                    html.P("In the Pokémon evolution tree, the process of evolution will lead to a significant increase in the various attributes of the evolved Pokémon. "\
+                            "This enhancement usually includes increases in basic stats such as HP (health), attack, defense, special attack, special defense, and speed. "\
+                            "Exactly how these stats change depends on the specific Pokémon species and evolution stage.",
+                        style={"text-align": "left",'font-size':'20'}),
+                    html.P("Evolution usually results in higher base stats, which can make the evolved Pokémon more powerful and versatile in battle. "\
+                           "Every Pokémon has its own advantages. For example, some are good at attacking, some are better at defending, and some are much faster than others. "\
+                            "If you want to achieve a good result in the battle, you should train each Pokémon according to its characteristics. "\
+                            "Not all Pokémon with high stats are the most powerful Pokémon. As long as the combination of abilities and attributes are matched, "\
+                                "the Pokémon will become much stronger.",
+                        style={"text-align": "left",'font-size':'20'}),
+                    html.P("Additionally, evolution sometimes changes the type of Pokémon, which has both advantages and disadvantages in terms of weaknesses and resistances. ",
+                        style={"text-align": "left",'font-size':'20'}),
                    html.Div(html.Br()),
                    dbc.Row([
                        dls.Hash(
@@ -173,6 +219,14 @@ tab1 = dbc.Tab(label='Pokémon 🥳', tab_id='tab1',
                    html.Div(html.Br()),
                    dbc.Button('Comparison Across Generation',color='secondary',size='lg',outline=False,
                               style={'font-size':'30px','width':'100%'}),
+                   html.Div(html.Br()),
+                    html.P("The number of Legendary Pokémon in each generation of Pokémon varies. Legendary Pokémon are rare and powerful creatures that often play an important role in a game's storyline."\
+                           "Typically, each generation introduces a new set of Legendary Pokémon. ",
+                        style={"text-align": "left",'font-size':'20'}),
+                    html.P("For example, in the first generation Pokémon games, there were three Legendary Pokémon: Articuno, Zapdos, and Moltres. "\
+                           "However, as the series progresses, so does the number of Legendary Pokémon. In later generations, such as Generation III "\
+                            "(Ruby, Sapphire, and Emerald) and Generation IV (Diamond, Pearl, and Platinum), more Legendary Pokémon were introduced, expanding the roster... ",
+                        style={"text-align": "left",'font-size':'20'}),         
                    html.Div(html.Br()),
                    dbc.Row([
                        dbc.Col([
@@ -191,27 +245,46 @@ tab1 = dbc.Tab(label='Pokémon 🥳', tab_id='tab1',
 tab2 = dbc.Tab(label='Create A Pokémon 🎭', tab_id='tab2',
                style=tab_style, activeTabClassName="fw-bold fst-italic",
                children=[
+                   html.Div(html.Br()),
+                   dbc.Button('Create Your Own Pokémon',color='secondary',size='lg',outline=False,
+                              style={'font-size':'30px','width':'100%'}),
+                   html.Div(html.Br()),
+                    html.P("Who is the next new Pokémon? Will different Pokémons have their offsprings? "\
+                           "In Pokémon Violet and Scarlet, Paradox Pokémon appears. What does other Paradox Pokémon look like? Let's see what new Pokémon the deep learning model would generate for us! 🔮",
+                        style={"text-align": "left",'font-size':'20'}),
                    dbc.Row([
                        dbc.Col([
-                           dbc.Row([
-                               html.P('Pokémon #1'),
-                               dcc.Dropdown(
-                                   id='select-pokemon-1', options=pokemon_options,
-                                   multi=False,
-                                   value='Bulbasaur'),
-                               html.P('Pokémon #2'),
-                               dcc.Dropdown(
-                                   id='select-pokemon-2', options=pokemon_options,
-                                   multi=False,
-                                   value='Bulbasaur')
-                           ])
-                       ], width=6),
-                       dbc.Col([
-                           html.P('Your New Pokémon!')
-                       ], width=6)
-
+                            html.Div(html.Br()),
+                            html.P('Pokémon #1'),
+                            dcc.Dropdown(
+                                id='select-pokemon-1', options=pokemon_options,
+                                multi=False,
+                                value='Bulbasaur'),
+                            html.Div(html.Br()),
+                            dls.Hash(html.Div(id='p1'),color='#435278',speed_multiplier=2,size=30,fullscreen=False)
+                        ],width = 5),
+                        dbc.Col([
+                            html.Div(html.Br()),
+                            html.P('Pokémon #2'),
+                            dcc.Dropdown(
+                                id='select-pokemon-2', options=pokemon_options,
+                                multi=False,
+                                value='Pikachu'),
+                            html.Div(html.Br()),
+                            dls.Hash(html.Div(id='p2'),color='#435278',speed_multiplier=2,size=30,fullscreen=False)
+                        ],width =5),
+                        dbc.Col([
+                            html.Div(html.Br()),
+                            dbc.Button('Create!',id='button1',color='warning',size='lg',outline=False,
+                              style={'font-size':'20px','width':'100%'}),
+                        ],align='end')    
+                    ]),
+                    html.Div(html.Br()),
+                    html.P('Your New Pokémon:', style={"text-align": "center",'font-size':'30px'}),
+                    dls.Hash(html.Div(id='new-pokemon-plot'),color='#435278',speed_multiplier=2,size=30,fullscreen=False),
+                    html.Div(html.Br()),
+                    html.Div(html.Br()),
                    ])
-               ])
 
 # tab3 = dbc.Tab(label='Ask Me A Question 🔮', tab_id='tab3',
 #                style=tab_style, activeTabClassName="fw-bold fst-italic",
@@ -244,7 +317,7 @@ app.layout = html.Div(
 )
 def update_pokemon_info(pokemon_name):
     if pokemon_name is None:
-        PreventUpdate
+        raise PreventUpdate
     else:
         sub_df = pokemon_df[pokemon_df.name == pokemon_name]
         pokedex = sub_df.pokedex_number.unique()[0]
@@ -555,6 +628,69 @@ def update_pokemon_info(pokemon_name):
                 html.Div(children=ability_bar)
             ],evol_tree
 
+@app.callback(
+    Output('p1', 'children'),
+    Input('select-pokemon-1', 'value')
+)
+def update_pokemon_info(pokemon_name):
+    if pokemon_name is None:
+        raise PreventUpdate
+    else:
+        sub_df = pokemon_df[pokemon_df.name == pokemon_name]
+        pokedex = sub_df.pokedex_number.unique()[0]
+        url = f'https://pokeapi.co/api/v2/pokemon/{pokedex}'
+        response = requests.get(url)
+        if response.status_code == 200:
+            pokemon_fig_data = response.json()
+            image_url_front = pokemon_fig_data['sprites']['other']['official-artwork']['front_default']
+            front_content = html.Div([
+                html.H5('Regular',style={"text-align": "center"}),
+                html.Img(src=image_url_front, style=image_style)
+            ])
+        else:
+            front_content = html.P('Pokemon Image Not Found', style={'color': '#957DAD', 'fontSize': 24})
+    return front_content
+
+@app.callback(
+    Output('p2', 'children'),
+    Input('select-pokemon-2', 'value')
+)
+def update_pokemon_info(pokemon_name):
+    if pokemon_name is None:
+        raise PreventUpdate
+    else:
+        sub_df = pokemon_df[pokemon_df.name == pokemon_name]
+        pokedex = sub_df.pokedex_number.unique()[0]
+        url = f'https://pokeapi.co/api/v2/pokemon/{pokedex}'
+        response = requests.get(url)
+        if response.status_code == 200:
+            pokemon_fig_data = response.json()
+            image_url_front = pokemon_fig_data['sprites']['other']['official-artwork']['front_default']
+            front_content = html.Div([
+                html.H5('Regular',style={"text-align": "center"}),
+                html.Img(src=image_url_front, style=image_style)
+            ])
+        else:
+            front_content = html.P('Pokemon Image Not Found', style={'color': '#957DAD', 'fontSize': 24})
+    return front_content
+
+@app.callback(
+    Output('new-pokemon-plot','children'),
+    Input('button1','n_clicks'),
+    State('select-pokemon-1','value'),
+    State('select-pokemon-2','value')
+)
+def update(clicks,p1,p2):
+    if clicks<1:
+        raise PreventUpdate
+    else:
+        pk_images = get_new_pokemon(f'fuse {p1.lower()} and {p2.lower}', 4, 1)
+        raw_data = json.loads(pk_images)
+        encode_img = decode_base64_image(raw_data["generated_images"][0])
+        content = html.Div(html.Img(src=encode_img),
+                           className="d-grid gap-2 d-md-flex justify-content-md-center",)
+    return content
+
 
 if __name__ == '__main__':
-    application.run(debug=False, port=8050)
+    application.run(debug=False, port=8080)
