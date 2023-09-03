@@ -220,13 +220,14 @@ tab1 = dbc.Tab(label='Pokémon 🥳', tab_id='tab1',
                    dbc.Button('Comparison Across Generation',color='secondary',size='lg',outline=False,
                               style={'font-size':'30px','width':'100%'}),
                    html.Div(html.Br()),
-                    html.P("The number of Legendary Pokémon in each generation of Pokémon varies. Legendary Pokémon are rare and powerful creatures that often play an important role in a game's storyline."\
-                           "Typically, each generation introduces a new set of Legendary Pokémon. ",
-                        style={"text-align": "left",'font-size':'20'}),
-                    html.P("For example, in the first generation Pokémon games, there were three Legendary Pokémon: Articuno, Zapdos, and Moltres. "\
-                           "However, as the series progresses, so does the number of Legendary Pokémon. In later generations, such as Generation III "\
-                            "(Ruby, Sapphire, and Emerald) and Generation IV (Diamond, Pearl, and Platinum), more Legendary Pokémon were introduced, expanding the roster... ",
-                        style={"text-align": "left",'font-size':'20'}),         
+                    html.P("The Pokémon universe, with its rich history and vast array of characters, presents a fascinating opportunity for data analysis and visualization. "\
+                          "In our series of descriptive graphics, we delve deep into the intricacies of Pokémon across different generations. "\
+                          "Beginning with the first generation that set the stage for this beloved franchise, we trace the evolution of Pokémon attributes, "\
+                          "showcasing how factors such as HP, Attack, and Speed have changed, diversified, or stabilized over time. "\
+                          "Through heatmaps, scatter plots, and dynamic animations, we capture the essence of each generation, highlighting the standout Pokémon and identifying overarching trends. "
+                           "These visuals not only serve as a testament to the game's intricate design and balance but also evoke a sense of nostalgia for longtime fans. "\
+                           "Whether you're a seasoned trainer or a newcomer to the Pokémon world, our graphical series offers insightful perspectives into the captivating journey of these creatures across various generations. ",
+                        style={"text-align": "left",'font-size':'20'}),     
                    html.Div(html.Br()),
                    dbc.Row([
                        dbc.Col([
