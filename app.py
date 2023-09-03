@@ -17,6 +17,8 @@ from dash.dependencies import Input, Output, State
 from dash.exceptions import PreventUpdate
 import dash_loading_spinners as dls
 
+
+description = '"In our exploration of the vast Pokémon universe, we've employed K-means clustering, a machine learning technique, to delve into the inherent similarities shared by these captivating creatures. Using the multi-dimensional aspects of each Pokémon, from HP to Speed, we've crafted similarity plots that vividly showcase groupings and affinities. Further, for any given Pokémon, our analysis pinpoints its top five counterparts that bear the most resemblance in attributes. This approach not only provides a fresh perspective on the relations between Pokémon but also uncovers potential strategy insights for trainers seeking complementary team members."'
 datasets_path = './datasets/pokedex_(Update_05.20).csv'
 logo_url = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/25.png'
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
