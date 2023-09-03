@@ -695,3 +695,36 @@ def update(clicks,p1,p2):
 
 if __name__ == '__main__':
     application.run(debug=False, port=8080)
+
+def get_top_5_similar(pokemon_name):
+    selected_pokemon = df[df['name'] == pokemon_name]
+    same_cluster_pokemon = df[df['cluster'] == selected_pokemon['cluster'].values[0]]
+
+    distances = []
+
+    for _, row in same_cluster_pokemon.iterrows():
+        if row['name'] == pokemon_name:
+            continue
+        curr_dist = distance.euclidean(selected_pokemon[features].values, row[features])
+        distances.append((curr_dist, row['name']))
+
+    # Sort by distance and take top 5
+    top_5 = sorted(distances, key=lambda x: x[0])[:5]
+    return [pokemon[1] for pokemon in top_5]
+
+def plot_pokemon_with_similar(pokemon_name):
+    # Get the 5 most similar Pokémon
+    top_5_similar = get_top_5_similar(pokemon_name)
+    
+    # Append the input Pokémon to the list
+    names = [pokemon_name] + top_5_similar
+
+    # Extract stats for these Pokémon
+    bar_data = df[df['name'].isin(names)]
+
+    # Create a stacked bar chart
+    fig = px.bar(bar_data, x='name', y=features, title=f"{pokemon_name} and its Top 5 Most Similar Pokémon")
+    fig.show()
+
+# Replace 'Pikachu' with any Pokémon name from the dataset
+plot_pokemon_with_similar('Pikachu')
