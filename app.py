@@ -17,8 +17,11 @@ from dash.dependencies import Input, Output, State
 from dash.exceptions import PreventUpdate
 import dash_loading_spinners as dls
 
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+from scipy.spatial import distance
 
-description = '"In our exploration of the vast Pokémon universe, we've employed K-means clustering, a machine learning technique, to delve into the inherent similarities shared by these captivating creatures. Using the multi-dimensional aspects of each Pokémon, from HP to Speed, we've crafted similarity plots that vividly showcase groupings and affinities. Further, for any given Pokémon, our analysis pinpoints its top five counterparts that bear the most resemblance in attributes. This approach not only provides a fresh perspective on the relations between Pokémon but also uncovers potential strategy insights for trainers seeking complementary team members."'
 datasets_path = './datasets/pokedex_(Update_05.20).csv'
 logo_url = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/25.png'
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
@@ -91,7 +94,7 @@ generation_plot1 = px.bar(plot_df, x="generation", y='percent',text='percent',
              color='status',color_discrete_sequence=px.colors.qualitative.T10,
              category_orders={"status": ["Normal", "Mythical", "Sub Legendary", "Legendary"]})
 generation_plot1.update_traces(texttemplate='%{text:.2s}%', textposition='outside')
-generation_plot1.update_layout(title_text='Pokémon over Generation',
+generation_plot1.update_layout(title_text='Distribution of Pokémon Introduced over Generations',
                   yaxis=dict(title=''),
                   xaxis=dict(
                     title='Generation',
@@ -100,15 +103,30 @@ generation_plot1.update_layout(title_text='Pokémon over Generation',
                 ),
                 uniformtext_minsize=8,
                 yaxis_ticksuffix = "%",
-                hovermode="x unified"
+                hovermode="x unified",
+                legend_title_text ='Status'
     )
 
-generation_plot2 = px.box(pokemon_df, x="generation", y='total_points',points='all',
+type_gen = pokemon_df.groupby(['generation','type_1']).size().unstack().fillna(0).transpose()
+generation_plot2 = px.imshow(type_gen,labels=dict(x='Generation',y = 'Type',color='Count'),
+                             color_continuous_scale='Teal')
+generation_plot2.update_layout(title_text='Distribution of Pokémon Type over Generations',
+                  yaxis=dict(title='',titlefont_size=16,tickfont_size=14),
+                  xaxis=dict(
+                    title='Generation',
+                    titlefont_size=16,
+                    tickfont_size=14,
+                ),
+                uniformtext_minsize=8,
+                legend_title_text ='Count'
+    )
+
+generation_plot3 = px.box(pokemon_df, x="generation", y='total_points',points='all',
              color='status',#notched=True,
              color_discrete_sequence=px.colors.qualitative.T10,
              custom_data=[pokemon_df['name'],pokemon_df['status']],
              )
-generation_plot2.update_layout(title_text='Pokémon Points over Generation',
+generation_plot3.update_layout(title_text='Evolution of Pokémon Total Points over Generations<br>(HP, Attack, Defense, Speed, Sp. Attack, Sp. Defense)',
                   yaxis=dict(title=''),
                   xaxis=dict(
                     title='Generation',
@@ -116,8 +134,64 @@ generation_plot2.update_layout(title_text='Pokémon Points over Generation',
                     tickfont_size=14,
                 ),
                 uniformtext_minsize=8,
+                legend_title_text ='Status'
     )
-generation_plot2.update_traces(hovertemplate='Status:%{customdata[1]}<br>Generation:%{x}<br>Total Points:%{y}<br>Name:%{customdata[0]}')
+generation_plot3.update_traces(hovertemplate='Name:%{customdata[0]}<br>Status:%{customdata[1]}<br>Generation:%{x}<br>Total Points:%{y}')
+
+generation_plot4 = px.scatter(pokemon_df,x='attack', y='defense',animation_frame='generation',size='hp',color='type_1',hover_name='name',
+                              log_x=True,size_max=60,range_x=[20,150],range_y=[20,250],
+                              custom_data=[pokemon_df['name'],pokemon_df['generation'],pokemon_df['type_1']])
+generation_plot4.update_layout(title_text='Evolution of Pokémon Attack and Defense over Generations',
+                  yaxis=dict(title='Defense',titlefont_size=16,tickfont_size=14),
+                  xaxis=dict(title='Attack',titlefont_size=16,tickfont_size=14),
+                uniformtext_minsize=8,
+                legend_title_text='Type'
+    )
+generation_plot4.layout.sliders[0].currentvalue.prefix ='Generation: '
+generation_plot4.update_traces(hovertemplate='Name:%{customdata[0]}<br>Gen:%{customdata[1]}<br>Type:%{customdata[2]}<br>Attack:%{x}<br>Defense:%{y}')
+
+
+features =['hp','attack','defense','speed','sp_attack','sp_defense']
+stats_df = pokemon_df[features]
+scaler = StandardScaler()
+scaled_data = scaler.fit_transform(stats_df)
+n_clusters=6
+kmeans=KMeans(n_clusters=n_clusters,random_state=123).fit(scaled_data)
+pokemon_df['cluster']=kmeans.labels_ +1
+
+pca = PCA(n_components=2)
+principal_components = pca.fit_transform(scaled_data)
+pc_df = pd.DataFrame(data=principal_components,columns=['PC1', 'PC2'])
+pc_df['cluster'] = kmeans.labels_ +1
+pc_df['cluster'] = pc_df['cluster'].astype(str)
+pc_df = pc_df.sort_values(by='cluster')
+pc_df['Name'] = pokemon_df['name']
+cluster_plot = px.scatter(pc_df,x='PC1',y='PC2',color='cluster',title ='Pokémon Clusters based on Stats',
+                          color_discrete_sequence=px.colors.qualitative.Vivid,
+                          custom_data=[pc_df['Name'],pc_df['cluster']])
+cluster_plot.update_layout(height=800,
+                  yaxis=dict(title='PC2',titlefont_size=16,tickfont_size=14),
+                  xaxis=dict(title='PC1',titlefont_size=16,tickfont_size=14),
+                uniformtext_minsize=8,
+                legend_title_text='Cluster'
+    )
+cluster_plot.update_traces(hovertemplate='Name:%{customdata[0]}<br>Cluster:%{customdata[1]}<br>PC1:%{x}<br>PC2:%{y}')
+    
+
+def get_top_5_similar(pokemon_name):
+    selected_pokemon = pokemon_df[pokemon_df['name'] == pokemon_name]
+    same_cluster_pokemon = pokemon_df[pokemon_df['cluster'] == selected_pokemon['cluster'].values[0]]
+
+    distances = []
+
+    for _, row in same_cluster_pokemon.iterrows():
+        if row['name'] == pokemon_name:
+            continue
+        curr_dist = distance.euclidean(selected_pokemon[features].values, row[features])
+        distances.append((curr_dist, row['name']))
+
+    top_5 = sorted(distances, key=lambda x: x[0])[:5]
+    return [pokemon[1] for pokemon in top_5]
 
 
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.SKETCHY, external_stylesheets])
@@ -222,14 +296,10 @@ tab1 = dbc.Tab(label='Pokémon 🥳', tab_id='tab1',
                    dbc.Button('Comparison Across Generation',color='secondary',size='lg',outline=False,
                               style={'font-size':'30px','width':'100%'}),
                    html.Div(html.Br()),
-                    html.P("The Pokémon universe, with its rich history and vast array of characters, presents a fascinating opportunity for data analysis and visualization. "\
-                          "In our series of descriptive graphics, we delve deep into the intricacies of Pokémon across different generations. "\
-                          "Beginning with the first generation that set the stage for this beloved franchise, we trace the evolution of Pokémon attributes, "\
-                          "showcasing how factors such as HP, Attack, and Speed have changed, diversified, or stabilized over time. "\
-                          "Through heatmaps, scatter plots, and dynamic animations, we capture the essence of each generation, highlighting the standout Pokémon and identifying overarching trends. "
-                           "These visuals not only serve as a testament to the game's intricate design and balance but also evoke a sense of nostalgia for longtime fans. "\
+                    html.P("In our series of descriptive graphics, we delve deep into the intricacies of Pokémon across different generations. "\
+                           "Through bar plots, heatmaps, box plots, and dynamic animations, we capture the essence of each generation, highlighting the standout Pokémon and identifying overarching trends. "
                            "Whether you're a seasoned trainer or a newcomer to the Pokémon world, our graphical series offers insightful perspectives into the captivating journey of these creatures across various generations. ",
-                        style={"text-align": "left",'font-size':'20'}),     
+                        style={"text-align": "left",'font-size':'20'}),      
                    html.Div(html.Br()),
                    dbc.Row([
                        dbc.Col([
@@ -241,11 +311,55 @@ tab1 = dbc.Tab(label='Pokémon 🥳', tab_id='tab1',
                            dcc.Graph(id='generation-plot2',figure=generation_plot2),color='#435278',speed_multiplier=2,size=30,fullscreen=False)
                            
                        ])
-                   ])
+                   ]),
+                   html.Div(html.Br()),
+                   dbc.Row([
+                       dbc.Col([
+                          dls.Hash(
+                           dcc.Graph(id='generation-plot3',figure=generation_plot3),color='#435278',speed_multiplier=2,size=30,fullscreen=False)
+                       ]),
+                       dbc.Col([
+                          dls.Hash(
+                           dcc.Graph(id='generation-plot4',figure=generation_plot4),color='#435278',speed_multiplier=2,size=30,fullscreen=False)
+                           
+                       ])
+                   ]),
+                   html.Div(html.Br()),
+                   dbc.Button('Pokemon Similarity based on Stats',color='secondary',size='lg',outline=False,
+                              style={'font-size':'30px','width':'100%'}),
+                   html.Div(html.Br()),
+                    html.P("In our exploration of the vast Pokémon universe, we've employed K-means clustering and Principal Component Analysis to delve into the inherent similarities shared by these captivating creatures."\
+                           " Using the multi-dimensional aspects of each Pokémon, from HP to Speed, we've crafted similarity plots that vividly showcase groupings and affinities. "\
+                            "Further, for any given Pokémon, our analysis pinpoints its top five counterparts that bear the most resemblance in attributes. "\
+                                "This approach not only provides a fresh perspective on the relations between Pokémon but also uncovers potential strategy insights for trainers seeking complementary team members.",
+                        style={"text-align": "left",'font-size':'20'}),   
+                   html.Div(html.Br()),
+                   dbc.Row([
+                       dbc.Col([
+                          dls.Hash(
+                           dcc.Graph(id='cluster-plot',figure=cluster_plot),color='#435278',speed_multiplier=2,size=30,fullscreen=False)
+                       ]),
+                       dbc.Col([
+                        html.Div([
+                            html.P('Select a Pokémon ',style={'width':'30%','fontSize':24,'padding-left':'20px'}),
+                                html.Div(
+                                    dcc.Dropdown(
+                                        id='select-pokemon-sim', options=pokemon_options,
+                                        multi=False,
+                                        value='Bulbasaur',
+                                    ), style={'width': '25%','font-size':24}
+                                ),
+                        ],style=dict(display='flex')),
+                          dls.Hash(
+                           dcc.Graph(id='similarity-plot'),color='#435278',speed_multiplier=2,size=30,fullscreen=False)
+                           
+                       ])
+                   ]),
+                   html.Div(html.Br()),
                 
                ])
 
-tab2 = dbc.Tab(label='Create A Pokémon 🎭', tab_id='tab2',
+tab2 = dbc.Tab(label='Create A Pokémon 🎭 (Upcoming)', tab_id='tab2',
                style=tab_style, activeTabClassName="fw-bold fst-italic",
                children=[
                    html.Div(html.Br()),
@@ -253,7 +367,8 @@ tab2 = dbc.Tab(label='Create A Pokémon 🎭', tab_id='tab2',
                               style={'font-size':'30px','width':'100%'}),
                    html.Div(html.Br()),
                     html.P("Who is the next new Pokémon? Will different Pokémons have their offsprings? "\
-                           "In Pokémon Violet and Scarlet, Paradox Pokémon appears. What does other Paradox Pokémon look like? Let's see what new Pokémon the deep learning model would generate for us! 🔮",
+                           "In Pokémon Violet and Scarlet, Paradox Pokémon appears. What does other Paradox Pokémon look like? Let's see what new Pokémon the deep learning model would generate for us! 🔮 "\
+                           "[We are currently working on productionize the results on the hosted environment. We encourage you to check back later for the finalized visuals. 🔜 ]",
                         style={"text-align": "left",'font-size':'20'}),
                    dbc.Row([
                        dbc.Col([
@@ -684,7 +799,7 @@ def update_pokemon_info(pokemon_name):
     State('select-pokemon-2','value')
 )
 def update(clicks,p1,p2):
-    if clicks<1:
+    if clicks is None:
         raise PreventUpdate
     else:
         pk_images = get_new_pokemon(f'fuse {p1.lower()} and {p2.lower}', 4, 1)
@@ -694,39 +809,32 @@ def update(clicks,p1,p2):
                            className="d-grid gap-2 d-md-flex justify-content-md-center",)
     return content
 
+@app.callback(
+    Output('similarity-plot','figure'),
+    Input('select-pokemon-sim','value')
+)
+def update(pokemon):
+    if pokemon is None:
+        raise PreventUpdate
+    else:
+        top_5_similar = get_top_5_similar(pokemon)
+        names = [pokemon] + top_5_similar
+        bar_data = pokemon_df[pokemon_df['name'].isin(names)]
+        fig = px.bar(bar_data, x='name', y=features, title=f"{pokemon} and its Top 5 Most Similar Pokémon",
+                     color_discrete_sequence=px.colors.qualitative.Prism)
+        fig.update_layout(height=700)
+        fig.update_layout(yaxis=dict(title='Points'),
+                  xaxis=dict(
+                    title='Pokémon',
+                    titlefont_size=16,
+                    tickfont_size=14,
+                ),
+                uniformtext_minsize=8,
+                legend_title_text='Stats'
+    )
+    return fig
+
+
 
 if __name__ == '__main__':
     application.run(debug=False, port=8080)
-
-def get_top_5_similar(pokemon_name):
-    selected_pokemon = df[df['name'] == pokemon_name]
-    same_cluster_pokemon = df[df['cluster'] == selected_pokemon['cluster'].values[0]]
-
-    distances = []
-
-    for _, row in same_cluster_pokemon.iterrows():
-        if row['name'] == pokemon_name:
-            continue
-        curr_dist = distance.euclidean(selected_pokemon[features].values, row[features])
-        distances.append((curr_dist, row['name']))
-
-    # Sort by distance and take top 5
-    top_5 = sorted(distances, key=lambda x: x[0])[:5]
-    return [pokemon[1] for pokemon in top_5]
-
-def plot_pokemon_with_similar(pokemon_name):
-    # Get the 5 most similar Pokémon
-    top_5_similar = get_top_5_similar(pokemon_name)
-    
-    # Append the input Pokémon to the list
-    names = [pokemon_name] + top_5_similar
-
-    # Extract stats for these Pokémon
-    bar_data = df[df['name'].isin(names)]
-
-    # Create a stacked bar chart
-    fig = px.bar(bar_data, x='name', y=features, title=f"{pokemon_name} and its Top 5 Most Similar Pokémon")
-    fig.show()
-
-# Replace 'Pikachu' with any Pokémon name from the dataset
-plot_pokemon_with_similar('Pikachu')
